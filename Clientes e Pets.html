@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Painel Santopet - Clientes e Pets</title>
+  <style>
+    :root {
+      --cor-primaria: #4fdce2;
+      --cor-secundaria: #ff00cc;
+      --cor-fonte: white;
+      /* Variáveis para cards – fundo e cor do texto */
+      --card-fundo: #fff;
+      --card-fonte: #333;
+    }
+    /* Classes para tema e estilo (aplicadas via JS) */
+    .tema-claro   { background: #f8f8f8; color: #333; }
+    .tema-escuro  { background: #222; color: #f8f8f8; }
+    .tema-pastel  { background: #fcefee; color: #555; }
+    .painel-moderno { padding: 30px; }
+    .painel-tradicional { padding: 40px; border: 2px solid var(--cor-primaria); }
+    .painel-compacto   { padding: 15px; }
+
+    /* Títulos usam a cor primária */
+    h2, h3, h4 {
+      color: var(--cor-primaria);
+    }
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: #f8f8f8;
+    }
+    /* ======== Topbar Atualizada ======== */
+    .topbar {
+      position: relative;
+      display: flex;
+      align-items: center;
+      background: var(--cor-primaria);
+      padding: 10px 20px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      border-bottom-left-radius: 12px;
+      border-bottom-right-radius: 12px;
+    }
+    .topbar img {
+      height: 60px;
+      margin-right: 20px;
+    }
+    .topbar .nav {
+      display: flex;
+      gap: 10px;
+    }
+    .topbar .nav button {
+      background: transparent;
+      color: var(--cor-fonte);
+      border: none;
+      font-weight: bold;
+      cursor: pointer;
+      padding: 10px 16px;
+      border-radius: 6px;
+      transition: background 0.3s;
+    }
+    .topbar .nav button:hover {
+      background: var(--cor-secundaria);
+    }
+    /* ======== Fim Topbar Atualizada ======== */
+    .main-content {
+      padding: 40px;
+      text-align: center;
+    }
+    /* Botão Novo Cliente */
+    #btn-novo-cliente {
+      margin-bottom: 20px;
+      background: var(--cor-primaria);
+      color: var(--cor-fonte);
+      font-weight: bold;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    /* Estilo dos formulários */
+    form {
+      background: white;
+      padding: 20px;
+      margin: 20px auto;
+      max-width: 600px;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    form input, form select, form textarea {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 12px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    form button {
+      background: var(--cor-primaria);
+      color: var(--cor-fonte);
+      font-weight: bold;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    /* Cards de cliente usando variáveis dinâmicas */
+    .cliente-item {
+      background: var(--card-fundo);
+      color: var(--card-fonte);
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+      margin-bottom: 15px;
+      text-align: left;
+      max-width: 600px;
+      margin-inline: auto;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .cliente-item:hover {
+      transform: scale(1.02);
+    }
+    .hidden {
+      display: none;
+    }
+    .tipo-pet-opcoes {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-bottom: 15px;
+    }
+    .tipo-pet-opcoes input[type="radio"] {
+      display: none;
+    }
+    .tipo-pet-opcoes label {
+      display: inline-block;
+      padding: 10px 20px;
+      background-color: #eee;
+      border-radius: 20px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background 0.3s, transform 0.2s;
+    }
+    .tipo-pet-opcoes input[type="radio"]:checked + label {
+      background-color: var(--cor-primaria);
+      color: var(--cor-fonte);
+      transform: scale(1.05);
+    }
+    /* Modal */
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal.hidden {
+      display: none;
+    }
+    .modal-content {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      width: 90%;
+      max-width: 600px;
+      max-height: 80vh;
+      overflow-y: auto;
+      position: relative;
+      text-align: left;
+    }
+    .close-button {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      font-size: 22px;
+      cursor: pointer;
+    }
+    /* Blocos de edição no modal */
+    #client-edit-container,
+    #pet-edit-container {
+      margin-bottom: 20px;
+    }
+    .pet-info {
+      background: #f0f0f0;
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+    .pet-info button {
+      margin-left: 5px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Painel principal -->
+  <div id="painel" class="hidden">
+    <div class="topbar">
+      <img id="logo-empresa" src="" alt="Logo">
+      <div class="nav">
+        <button onclick="window.parent.loadPage('Dashboard.html')">Dashboard</button>
+        <button onclick="window.parent.loadPage('Agendamentos/Agendamentos.html')">Agendamentos</button>
+        <button onclick="carregarClientes()">Clientes e Pets</button>
+        <button onclick="window.parent.loadPage('Pacotes/Pacotes.html')">Pacotes</button>
+        <button onclick="window.parent.loadPage('Servicos/Servicos.html')">Serviços</button>
+        <button onclick="window.parent.loadPage('Financeiro/Financeiro.html')">Financeiro</button>
+        <button onclick="window.parent.loadPage('Configuracoes/Configuracoes.html')">Configurações</button>
+      </div>
+    </div>
+    <div class="main-content">
+      <button id="btn-novo-cliente" onclick="mostrarModalNovoCliente()">Novo Cliente</button>
+      <div id="clientes-lista"></div>
+    </div>
+  </div>
+
+  <!-- Modal único -->
+  <div id="modal" class="modal hidden">
+    <div class="modal-content">
+      <span class="close-button" onclick="fecharModal()">&times;</span>
+      <h2 id="modal-titulo"></h2>
+      <!-- Blocos para edição do cliente e pet -->
+      <div id="client-edit-container"></div>
+      <div id="pet-section-container"></div>
+      <div id="pet-edit-container" class="hidden"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+    const supabase = createClient(
+      'https://bufctkijjxirtkykfttn.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ1ZmN0a2lqanhpcnRreWtmdHRuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQzMTI4NjMsImV4cCI6MjA1OTg4ODg2M30.KA2luqWH0Y9kVbpfnMDuTIQKn-2qybe5qZiUlTAIjSA'
+    );
+
+    /* CARREGAR PAINEL */
+    async function carregarPainel() {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const user = sessionData?.session?.user;
+      if (!user) return window.location.href = 'index.html';
+
+      const { data: empresa } = await supabase
+        .from('empresas')
+        .select('*')
+        .eq('auth_user_id', user.id)
+        .single();
+      if (empresa) {
+        localStorage.setItem('empresa_id', empresa.id);
+        // Atualiza variáveis CSS
+        document.documentElement.style.setProperty('--cor-primaria', empresa.cor_primaria || '#4fdce2');
+        document.documentElement.style.setProperty('--cor-secundaria', empresa.cor_secundaria || '#ff00cc');
+        // Se desejar, também é possível atualizar as variáveis dos cards
+        // Exemplo:
+        // document.documentElement.style.setProperty('--card-fundo', (empresa.tema === 'escuro' ? '#333' : '#fff'));
+        // document.documentElement.style.setProperty('--card-fonte', (empresa.tema === 'escuro' ? '#f8f8f8' : '#333'));
+        
+        if (empresa.logo_url) {
+          document.getElementById('logo-empresa').src = empresa.logo_url;
+        }
+        // Aplica o tema dinamicamente
+        document.body.classList.remove('tema-claro', 'tema-escuro', 'tema-pastel');
+        document.body.classList.add('tema-' + (empresa.tema || 'claro'));
+        // Atualiza o estilo do painel principal
+        const mainContent = document.querySelector('.main-content');
+        if (mainContent) {
+          mainContent.classList.remove('painel-moderno', 'painel-tradicional', 'painel-compacto');
+          mainContent.classList.add('painel-' + (empresa.estilo_painel || 'moderno'));
+        }
+      }
+      document.getElementById('painel').classList.remove('hidden');
+      carregarClientes();
+    }
+
+    /* LISTAR CLIENTES */
+    async function carregarClientes() {
+      const empresa_id = localStorage.getItem('empresa_id');
+      const { data: clientes } = await supabase
+        .from('clientes')
+        .select('*')
+        .eq('empresa_id', empresa_id);
+      const container = document.getElementById('clientes-lista');
+      if (!clientes || clientes.length === 0) {
+        container.innerHTML = '<p>Nenhum cliente encontrado.</p>';
+        return;
+      }
+      let html = '<h2>Clientes e seus Pets</h2>';
+      clientes.forEach(cliente => {
+        html += `
+          <div class="cliente-item" onclick="abrirModalEdicaoCliente('${cliente.id}')">
+            <h3>${cliente.nome}</h3>
+            <p><strong>Telefone:</strong> ${cliente.telefone}</p>
+            <p><strong>Bairro:</strong> ${cliente.bairro || '-'}</p>
+            <div id="pets-${cliente.id}">
+              <em>Carregando pets...</em>
+            </div>
+          </div>
+        `;
+        carregarPetsNoCard(cliente.id);
+      });
+      container.innerHTML = html;
+    }
+
+    async function carregarPetsNoCard(cliente_id) {
+      const empresa_id = localStorage.getItem('empresa_id');
+      const { data: pets } = await supabase
+        .from('pets')
+        .select('*')
+        .eq('empresa_id', empresa_id)
+        .eq('cliente_id', cliente_id);
+      const container = document.getElementById(`pets-${cliente_id}`);
+      if (!pets || pets.length === 0) {
+        container.innerHTML = '<p>Nenhum pet cadastrado.</p>';
+        return;
+      }
+      container.innerHTML = pets
+        .map(p => `<p><strong>Pet:</strong> ${p.nome}</p>`)
+        .join('');
+    }
+
+    /* MODAL: NOVO CLIENTE */
+    function mostrarModalNovoCliente() {
+      document.getElementById('modal-titulo').textContent = "Novo Cliente";
+      document.getElementById('client-edit-container').innerHTML = `
+         <form id="form-novo-cliente" onsubmit="salvarClienteModal(event)">
+           <input type="text" name="nome" placeholder="Nome do cliente" required>
+           <input type="text" name="telefone" placeholder="Telefone" required>
+           <input type="text" name="bairro" placeholder="Bairro">
+           <button type="submit">Salvar Cliente</button>
+         </form>
+      `;
+      // Limpa áreas de pet
+      document.getElementById('pet-section-container').innerHTML = "";
+      document.getElementById('pet-edit-container').classList.add('hidden');
+      document.getElementById('client-edit-container').classList.remove('hidden');
+      document.getElementById('modal').classList.remove('hidden');
+    }
+    
+    async function salvarClienteModal(e) {
+      e.preventDefault();
+      const form = document.getElementById('form-novo-cliente');
+      const empresa_id = localStorage.getItem('empresa_id');
+      const dados = {
+        empresa_id,
+        nome: form.nome.value,
+        telefone: form.telefone.value,
+        bairro: form.bairro.value
+      };
+      const { error } = await supabase
+        .from('clientes')
+        .insert([dados]);
+      if (error) {
+        alert("Erro ao salvar cliente: " + error.message);
+        return;
+      }
+      alert("Cliente criado com sucesso!");
+      fecharModal();
+      carregarClientes();
+    }
+
+    /* MODAL: EDIÇÃO DE CLIENTE + PETS */
+    async function abrirModalEdicaoCliente(clienteId) {
+      const { data: cliente, error } = await supabase
+        .from('clientes')
+        .select('*')
+        .eq('id', clienteId)
+        .single();
+      if (error || !cliente) {
+        alert("Erro ao carregar dados do cliente");
+        return;
+      }
+      document.getElementById('modal-titulo').textContent = "Editar Cliente";
+      document.getElementById('client-edit-container').innerHTML = `
+         <form id="form-editar-cliente" onsubmit="atualizarClienteModal(event)">
+           <input type="hidden" name="id" value="${cliente.id}">
+           <input type="text" name="nome" value="${cliente.nome}" required>
+           <input type="text" name="telefone" value="${cliente.telefone}" required>
+           <input type="text" name="bairro" value="${cliente.bairro||''}">
+           <button type="submit">Atualizar Cliente</button>
+         </form>
+      `;
+      document.getElementById('client-edit-container').classList.remove('hidden');
+      document.getElementById('pet-section-container').innerHTML = `
+         <h3>Pets</h3>
+         <div id="modal-lista-pets"></div>
+         <button onclick="mostrarFormularioNovoPet()">+ Adicionar Pet</button>
+      `;
+      await carregarPetsModal(cliente.id);
+      document.getElementById('pet-edit-container').classList.add('hidden');
+      document.getElementById('modal').classList.remove('hidden');
+    }
+
+    async function atualizarClienteModal(e) {
+      e.preventDefault();
+      const form = document.getElementById("form-editar-cliente");
+      const clienteId = form.id.value;
+      const dados = {
+        nome: form.nome.value,
+        telefone: form.telefone.value,
+        bairro: form.bairro.value
+      };
+      const { error } = await supabase
+        .from('clientes')
+        .update(dados)
+        .eq('id', clienteId);
+      if (error) {
+        alert("Erro ao atualizar cliente: " + error.message);
+        return;
+      }
+      alert("Cliente atualizado com sucesso!");
+      fecharModal();
+      carregarClientes();
+    }
+
+    /* LISTAR PETS NO MODAL */
+    async function carregarPetsModal(clienteId) {
+      const empresa_id = localStorage.getItem('empresa_id');
+      const { data: pets } = await supabase
+        .from('pets')
+        .select('*')
+        .eq('empresa_id', empresa_id)
+        .eq('cliente_id', clienteId);
+      const container = document.getElementById('modal-lista-pets');
+      if (!pets || pets.length === 0) {
+        container.innerHTML = "<p>Nenhum pet cadastrado.</p>";
+        return;
+      }
+      container.innerHTML = pets.map(p => `
+        <div id="pet-${p.id}" class="pet-info">
+          <strong>Pet:</strong> ${p.nome}
+          <button onclick='mostrarFormularioEditarPet(${JSON.stringify(p)})'>Editar</button>
+          <button onclick='excluirPet("${p.id}")' style="background:#e74c3c;color:#fff">Excluir</button>
+        </div>
+      `).join('');
+    }
+
+    /* Formulários de Pet */
+    function mostrarFormularioEditarPet(pet) {
+      document.getElementById('client-edit-container').classList.add('hidden');
+      document.getElementById('pet-edit-container').innerHTML = `
+         <h4>Editar Pet</h4>
+         <form onsubmit="atualizarPetModal(event, '${pet.id}')">
+           <input type="text" name="nome" value="${pet.nome}" required>
+           <input type="text" name="raca" value="${pet.raca||''}" placeholder="Raça">
+           <select name="porte">
+             <option value="">Selecione o porte</option>
+             <option value="Pequeno" ${pet.porte==='Pequeno'?'selected':''}>Pequeno</option>
+             <option value="Médio" ${pet.porte==='Médio'?'selected':''}>Médio</option>
+             <option value="Grande" ${pet.porte==='Grande'?'selected':''}>Grande</option>
+           </select>
+           <label>Aniversário do pet</label>
+           <input type="date" name="aniversario" value="${pet.aniversario||''}">
+           <label>Observações</label>
+           <textarea name="observacoes">${pet.observacoes||''}</textarea>
+           <button type="submit">Atualizar Pet</button>
+           <button type="button" onclick="voltarParaEdicaoCliente()">Voltar</button>
+         </form>
+      `;
+      document.getElementById('pet-edit-container').classList.remove('hidden');
+    }
+
+    function mostrarFormularioNovoPet() {
+      document.getElementById('client-edit-container').classList.add('hidden');
+      document.getElementById('pet-edit-container').innerHTML = `
+         <h4>Novo Pet</h4>
+         <form onsubmit="cadastrarPetModal(event)">
+           <input type="text" name="nome" placeholder="Nome do pet" required>
+           <input type="text" name="raca" placeholder="Raça">
+           <select name="porte">
+             <option value="">Selecione o porte</option>
+             <option value="Pequeno">Pequeno</option>
+             <option value="Médio">Médio</option>
+             <option value="Grande">Grande</option>
+           </select>
+           <label>Aniversário do pet</label>
+           <input type="date" name="aniversario">
+           <label>Observações</label>
+           <textarea name="observacoes"></textarea>
+           <button type="submit">Salvar Pet</button>
+           <button type="button" onclick="voltarParaEdicaoCliente()">Voltar</button>
+         </form>
+      `;
+      document.getElementById('pet-edit-container').classList.remove('hidden');
+    }
+
+    function voltarParaEdicaoCliente() {
+      document.getElementById('pet-edit-container').classList.add('hidden');
+      document.getElementById('client-edit-container').classList.remove('hidden');
+    }
+
+    async function atualizarPetModal(e, petId) {
+      e.preventDefault();
+      const form = e.target;
+      const dados = {
+        nome: form.nome.value,
+        raca: form.raca.value,
+        porte: form.porte.value,
+        aniversario: form.aniversario.value,
+        observacoes: form.observacoes.value
+      };
+      const { error } = await supabase
+        .from('pets')
+        .update(dados)
+        .eq('id', petId);
+      if (error) {
+        alert("Erro ao atualizar pet: " + error.message);
+        return;
+      }
+      alert("Pet atualizado com sucesso!");
+      const clienteId = document.querySelector("#form-editar-cliente input[name='id']").value;
+      carregarPetsModal(clienteId);
+      voltarParaEdicaoCliente();
+    }
+
+    async function excluirPet(petId) {
+      const confirma = confirm("Deseja mesmo excluir este pet?");
+      if (!confirma) return;
+      const { error } = await supabase
+        .from('pets')
+        .delete()
+        .eq('id', petId);
+      if (error) {
+        alert("Erro ao excluir pet: " + error.message);
+        return;
+      }
+      alert("Pet excluído com sucesso!");
+      const clienteId = document.querySelector("#form-editar-cliente input[name='id']").value;
+      carregarPetsModal(clienteId);
+    }
+
+    async function cadastrarPetModal(e) {
+      e.preventDefault();
+      const form = e.target;
+      const clienteId = document.querySelector("#form-editar-cliente input[name='id']").value;
+      const empresa_id = localStorage.getItem('empresa_id');
+      const dados = {
+        cliente_id: clienteId,
+        empresa_id,
+        nome: form.nome.value,
+        raca: form.raca.value,
+        porte: form.porte.value,
+        aniversario: form.aniversario.value,
+        observacoes: form.observacoes.value
+      };
+      const { error } = await supabase
+        .from('pets')
+        .insert([dados]);
+      if (error) {
+        alert("Erro ao salvar pet: " + error.message);
+        return;
+      }
+      alert("Pet cadastrado com sucesso!");
+      voltarParaEdicaoCliente();
+      carregarPetsModal(clienteId);
+    }
+
+    function fecharModal() {
+      document.getElementById('modal').classList.add('hidden');
+    }
+
+    /* Expor funções globalmente para uso em onclick */
+    window.carregarClientes = carregarClientes;
+    window.mostrarModalNovoCliente = mostrarModalNovoCliente;
+    window.salvarClienteModal = salvarClienteModal;
+    window.abrirModalEdicaoCliente = abrirModalEdicaoCliente;
+    window.atualizarClienteModal = atualizarClienteModal;
+    window.mostrarFormularioNovoPet = mostrarFormularioNovoPet;
+    window.cadastrarPetModal = cadastrarPetModal;
+    window.voltarParaEdicaoCliente = voltarParaEdicaoCliente;
+    window.mostrarFormularioEditarPet = mostrarFormularioEditarPet;
+    window.atualizarPetModal = atualizarPetModal;
+    window.excluirPet = excluirPet;
+    window.fecharModal = fecharModal;
+
+    carregarPainel();
+  </script>
+
+  <script>
+    // Se necessário, intercepta cliques na topbar para redirecionamento (quando o documento estiver em iframe)
+    if (window !== window.parent) {
+      const navegacao = {
+        "Dashboard": "Dashboard.html",
+        "Agendamentos": "Agendamentos/Agendamentos.html",
+        "Clientes e Pets": "Clientes e pets/Clientes e Pets.html",
+        "Serviços": "Servicos/Servicos.html"
+      };
+      const btns = document.querySelectorAll(".topbar .nav button");
+      btns.forEach(btn => {
+        const texto = btn.innerText.trim();
+        if (navegacao[texto]) {
+          btn.onclick = function(e) {
+            e.preventDefault();
+            window.parent.loadPage(navegacao[texto]);
+          };
+        }
+      });
+    }
+  </script>
+</body>
+</html>
