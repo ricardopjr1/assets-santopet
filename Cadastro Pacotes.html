@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Painel Santopet – Pacotes</title>
+  <style>
+    :root {
+      --cor-primaria: #4fdce2;
+      --cor-secundaria: #ff00cc;
+      --cor-fonte: #fff;
+      --card-fundo: #fff;
+      --card-fonte: #333;
+    }
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
+      background: #f8f8f8;
+    }
+    h2, h3 {
+      color: var(--cor-primaria);
+    }
+    .topbar {
+      display: flex;
+      align-items: center;
+      background: var(--cor-primaria);
+      padding: 10px 20px;
+      border-bottom-left-radius: 12px;
+      border-bottom-right-radius: 12px;
+      box-shadow: 0 2px 6px rgba(0,0,0,.1);
+    }
+    .topbar img {
+      height: 60px;
+      margin-right: 20px;
+    }
+    .topbar .nav {
+      display: flex;
+      gap: 10px;
+    }
+    .topbar .nav button {
+      background: transparent;
+      color: var(--cor-fonte);
+      border: none;
+      font-weight: bold;
+      cursor: pointer;
+      padding: 10px 16px;
+      border-radius: 6px;
+      transition: background .3s;
+    }
+    .topbar .nav button:hover {
+      background: var(--cor-secundaria);
+    }
+    .main-content {
+      padding: 40px;
+      text-align: center;
+    }
+    #btn-novo-pacote {
+      margin-bottom: 20px;
+      background: var(--cor-primaria);
+      color: var(--cor-fonte);
+      font-weight: bold;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .pacote-item {
+      background: var(--card-fundo);
+      color: var(--card-fonte);
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,.1);
+      margin: 0 auto 15px;
+      max-width: 700px;
+      text-align: left;
+    }
+    .modal {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,.5);
+      z-index: 1000;
+    }
+    .modal.hidden {
+      display: none;
+    }
+    .modal-content {
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      width: 95%;
+      max-width: 700px;
+      max-height: 90vh;
+      overflow-y: auto;
+      position: relative;
+      text-align: left;
+    }
+    .close-btn {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      font-size: 22px;
+      cursor: pointer;
+    }
+    form input, form select, form textarea {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 12px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    .servico-linha {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .servico-linha input[type=number] {
+      max-width: 80px;
+    }
+    form button[type=submit] {
+      background: var(--cor-primaria);
+      color: var(--cor-fonte);
+      font-weight: bold;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div id="painel" class="hidden">
+    <div class="topbar">
+      <img id="logo-empresa" src="" alt="Logo">
+      <div class="nav">
+        <button onclick="window.parent.loadPage('Dashboard.html')">Dashboard</button>
+        <button onclick="window.parent.loadPage('Agendamentos/Agendamentos.html')">Agendamentos</button>
+        <button onclick="window.parent.loadPage('Clientes e pets/Clientes e Pets.html')">Clientes & Pets</button>
+        <button onclick="carregarPacotes()">Pacotes</button>
+        <button onclick="window.parent.loadPage('Servicos/Servicos.html')">Serviços</button>
+        <button onclick="window.parent.loadPage('Financeiro/Financeiro.html')">Financeiro</button>
+        <button onclick="window.parent.loadPage('Configuracoes/Configuracoes.html')">Configurações</button>
+      </div>
+    </div>
+    <div class="main-content">
+      <button id="btn-novo-pacote" onclick="abrirModalNovoPacote()">+ Novo Pacote</button>
+      <div id="lista-pacotes"></div>
+    </div>
+  </div>
+
+  <div id="modal-pacote" class="modal hidden">
+    <div class="modal-content">
+      <span class="close-btn" onclick="fecharModal()">&times;</span>
+      <h2 id="titulo-modal">Novo Pacote</h2>
+      <form id="form-pacote" onsubmit="salvarPacote(event)">
+        <input type="text" name="nome" placeholder="Nome do pacote" required>
+        <input type="number" name="valor" placeholder="Valor do pacote (R$)" step="0.01" required>
+        <input type="number" name="validade_dias" placeholder="Dias de Validade" required>
+        <input type="number" name="frequencia" placeholder="Frequência (ex: 7 para semanal)" required>
+        <textarea name="politica" rows="3" placeholder="Política de uso (regras, vencimento, etc.)"></textarea>
+        <h3>Serviços incluídos</h3>
+        <div id="servicos-container"><em>Carregando serviços...</em></div>
+        <button type="submit">Salvar Pacote</button>
+      </form>
+    </div>
+  </div>
+
+  <script type="module">
+    import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+    const supabase = createClient(
+      'https://bufctkijjxirtkykfttn.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ1ZmN0a2lqanhpcnRreWtmdHRuIiwicmV4cCI6MjA1OTg4ODg2M30.KA2luqWH0Y9kVbpfnMDuTIQKn-2qybe5qZiUlTAIjSA'
+    );
+
+    let SERVICOS = [];
+
+    async function carregarPainel() {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return window.location.href = 'index.html';
+
+      const { data: empresa, error: errEmp } = await supabase
+        .from('empresas')
+        .select('*')
+        .eq('auth_user_id', session.user.id)
+        .single();
+      if (errEmp) return console.error(errEmp);
+
+      localStorage.setItem('empresa_id', empresa.id);
+      document.documentElement.style.setProperty('--cor-primaria', empresa.cor_primaria);
+      document.documentElement.style.setProperty('--cor-secundaria', empresa.cor_secundaria);
+      if (empresa.logo_url) document.getElementById('logo-empresa').src = empresa.logo_url;
+
+      document.getElementById('painel').classList.remove('hidden');
+      await carregarServicos();
+      await carregarPacotes();
+    }
+
+    async function carregarServicos() {
+      const empresa_id = localStorage.getItem('empresa_id');
+      const { data, error } = await supabase
+        .from('servicos')
+        .select('*')
+        .eq('empresa_id', empresa_id);
+      if (error) return console.error(error);
+
+      SERVICOS = data || [];
+      const container = document.getElementById('servicos-container');
+      if (!SERVICOS.length) {
+        container.innerHTML = '<p>Nenhum serviço cadastrado.</p>';
+      } else {
+        container.innerHTML = SERVICOS.map(s => `
+          <div class="servico-linha">
+            <input type="checkbox" id="srv-${s.id}" data-id="${s.id}">
+            <label for="srv-${s.id}" style="flex:1">${s.nome}</label>
+            <input type="number" id="qtd-${s.id}" min="1" placeholder="Qtd.">
+          </div>
+        `).join('');
+      }
+    }
+
+    async function carregarPacotes() {
+      const empresa_id = localStorage.getItem('empresa_id');
+      const { data, error } = await supabase
+        .from('pacotes')
+        .select(`*, pacote_servicos(servico, quantidade)`)
+        .eq('empresa_id', empresa_id)
+        .order('created_at', { ascending: false });
+      const container = document.getElementById('lista-pacotes');
+      if (error || !data.length) {
+        container.innerHTML = '<p>Nenhum pacote cadastrado.</p>';
+        return;
+      }
+
+      container.innerHTML = data.map(p => {
+        const servs = p.pacote_servicos.map(ps => `${SERVICOS.find(s=>s.id===ps.servico)?.nome || ps.servico} (${ps.quantidade})`).join(', ');
+        return `
+          <div class="pacote-item">
+            <p><strong>Nome:</strong> ${p.nome}</p>
+            <p><strong>Valor:</strong> R$ ${Number(p.valor).toFixed(2)}</p>
+            <p><strong>Validade:</strong> ${p.validade_dias} dias</p>
+            <p><strong>Frequência:</strong> Cada ${p.frequencia} dias</p>
+            <p><strong>Política:</strong> ${p.politica || '-'}</p>
+            <p><strong>Serviços:</strong> ${servs}</p>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function abrirModalNovoPacote() {
+      document.getElementById('form-pacote').reset();
+      document.getElementById('modal-pacote').classList.remove('hidden');
+    }
+
+    function fecharModal() {
+      document.getElementById('modal-pacote').classList.add('hidden');
+    }
+
+    async function salvarPacote(e) {
+      e.preventDefault();
+      const f = e.target;
+      const empresa_id = localStorage.getItem('empresa_id');
+      const idPacote = crypto.randomUUID();
+
+      // 1) Inserção na tabela pacotes
+      const { error: errPacote } = await supabase.from('pacotes').insert([{ 
+        id: idPacote,
+        empresa_id,
+        nome: f.nome.value,
+        valor: Number(f.valor.value),
+        validade_dias: Number(f.validade_dias.value),
+        frequencia: Number(f.frequencia.value),
+        politica: f.politica.value
+      }]);
+      if (errPacote) { console.error(errPacote); return alert('Erro ao salvar pacote.'); }
+
+      // 2) Inserção de serviços relacionados
+      const itens = SERVICOS.map(s => {
+        const chk = document.getElementById(`srv-${s.id}`);
+        const qtd = Number(document.getElementById(`qtd-${s.id}`).value) || 0;
+        return (chk.checked && qtd>0) ? {
+          id: crypto.randomUUID(),
+          pacote_id: idPacote,
+          servico: s.id,
+          quantidade: qtd,
+          empresa_id
+        } : null;
+      }).filter(x=>x);
+      if (!itens.length) return alert('Selecione pelo menos um serviço.');
+
+      const { error: errServicos } = await supabase.from('pacote_servicos').insert(itens);
+      if (errServicos) { console.error(errServicos); return alert('Erro ao salvar serviços do pacote.'); }
+
+      alert('Pacote cadastrado com sucesso!');
+      fecharModal();
+      await carregarPacotes();
+    }
+
+    window.abrirModalNovoPacote = abrirModalNovoPacote;
+    window.fecharModal = fecharModal;
+    window.salvarPacote = salvarPacote;
+
+    carregarPainel();
+  </script>
+</body>
+</html>
